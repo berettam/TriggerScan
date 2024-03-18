@@ -9,7 +9,7 @@ Help()
 	echo "Script to perform the threshold scan on multiple channels/runs."
 	echo "Calls the code TriggerScan.cpp (compiled to TrigScan) recursively on a specified run/channel range"
 	echo
-	echo "Syntax: ./WriteAverages.sh [-h|r|R|p|c|e|w|s]"
+	echo "Syntax: ./LaunchTriggerScan.sh [-h|r|R|p|c|e|w|s]"
 	echo "options:"
 	echo "r	The list of runs (COMMA SEPARATED) to be used. "
 	echo "R	Last run. If provided, check for all the runs between first -r and -R"
