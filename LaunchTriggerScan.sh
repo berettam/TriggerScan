@@ -27,7 +27,7 @@ Help()
 	echo "-r, -p , and -c are mandatory!!!!"
 	echo
 	echo "Example: "
-	echo ".LaunchTriggerScan.sh -r 750055 -c 1 -p /raid1-pcsingle/users/shared_data_meno3/PROCESSED/macros/triggerscanoutput/"
+	echo "./LaunchTriggerScan.sh -r 750055 -c 1 -p /raid1-pcsingle/users/shared_data_meno3/PROCESSED/macros/triggerscanoutput/"
 }
 
 
@@ -201,6 +201,6 @@ do
 		do
 			echo "--> CH " ${chArray[$i]} 
 			echo
-			./TrigScan -r $f -c ${chArray[$i]} -t${tmin} -T${tmax} -w${winlength} -o ${Path_output} -m${minrate} -s${thstep} -f${trigparfile} -I0.000001 -A10
+			/data/users/berettam/DianaHallC/TriggerScan/TrigScan -r $f -c ${chArray[$i]} -t${tmin} -T${tmax} -w${winlength} -o ${Path_output} -m${minrate} -s${thstep} -f${trigparfile} -I0.01 -A10
 	done
 done
