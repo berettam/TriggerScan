@@ -1,6 +1,6 @@
 /*
 
-g++ -o TrigScan -std=c++0x -D_HAVE_FFTW3_ `root-config --cflags --glibs` -lRooFit `diana-config --cflags --libs` TriggerScan.cpp
+g++ -o TrigScan -std=c++0x -D_HAVE_FFTW3_ `root-config --cflags --glibs` -lRooFit `diana-config --cflags --libs` -O3 TriggerScan.cpp
 
 */
 #include <cstdlib>
@@ -43,6 +43,7 @@ g++ -o TrigScan -std=c++0x -D_HAVE_FFTW3_ `root-config --cflags --glibs` -lRooFi
 #include "QGlobalDataManager.hh"
 #include "QDetChannelHandle.hh"
 
+#include <gsl/gsl_fit.h>
 using namespace Cuore;
 //apollo like trigger
 int SearchForTrigger(QVector timestream,double Threshold, double AvgWin, double Debounce, double adc2mV) {
@@ -100,13 +101,58 @@ void GetSamples(const QRdcfRootFileReader* reader, const int ch, const Long64_t 
     return;
 }
 
-void GetTimestream(const QRdcfRootFileReader* reader, const int &ch, const double &tstart, const double &tend, QVector& wave){
-    Long64_t startns = (Long64_t) (std::round(tstart*1.0e9));
-    Long64_t endns = (Long64_t) (std::round(tend*1.0e9));
+void GetTimestream(const QRdcfRootFileReader* reader, const int &ch, const double &tstart, const double &tend, QVector& wave,int run){
+     Long64_t startns = (Long64_t) (std::round(tstart*1.0e9));
+  Long64_t endns = (Long64_t) (std::round(tend*1.0e9));
 
 	QVector temp;
-    GetSamples(reader, ch, startns, endns, temp);
-	wave = temp;
+  GetSamples(reader, ch, startns, endns, temp);
+
+	//Downsampling to 2kHz
+	
+	// if(ch>30){
+	// // 	//downsampling
+  // wave.Resize(uint(temp.Size()/2));
+  // wave.Initialize(0);
+  // for(size_t i=0;i<temp.Size();i+=2){
+  //   wave[uint(i/2)] = temp[i]/GainByChannel[ch];
+  // }
+		
+	// }
+	// else{
+	// 	//if lmo, do nothing
+	// 	wave = temp;
+	// }
+	
+
+  //removing slope
+  double fBaselineIntercept,fBaselineSlope;
+  double cov00, cov01, cov11,fBaselineRMS;
+
+  //
+  size_t npoints = temp.Size();
+  Double_t* TimeArray = new Double_t[npoints];
+  for(size_t i = 0; i < npoints; i++){
+    TimeArray[i] = (Double_t)i;
+  }
+  gsl_fit_linear (TimeArray, 1, temp.GetArray(), 1, npoints, 
+          &fBaselineIntercept, &fBaselineSlope, &cov00, &cov01, &cov11, &fBaselineRMS);
+  
+  
+  if(run<500936){
+    wave.Resize(int(npoints/2));
+    wave.Initialize(0);
+    for(size_t i = 0; i < npoints; i+=2){
+      wave[uint(i/2)] = (temp[i]-TimeArray[i]*fBaselineSlope-fBaselineIntercept);///GainByChannel[ch];
+    }
+  }
+  else{
+    wave.Resize(npoints);
+    wave.Initialize(0);
+    for(size_t i = 0; i < npoints; i++){
+      wave[i] = (temp[i]-TimeArray[i]*fBaselineSlope-fBaselineIntercept);///GainByChannel[ch];
+    }
+  }
 
 }
 
@@ -156,6 +202,7 @@ void Usage()
   std::cout<<"------------------------------------------------------------"<<std::endl;
   std::cout<<"-r (or --run)             run to be processed                                   [REQUIRED] "<<std::endl;
   std::cout<<"-c (or --cahnnel)         channel to be analyzed                                [REQUIRED] "<<std::endl;
+  std::cout<<"-a (or --auxcahnnel)      value to be included in the list of aux                  [REQUIRED] "<<std::endl;
   std::cout<<"-t (or --tstart)          start time for scan                                   [100 s]"<<std::endl;
   std::cout<<"-T (or --tstop)           stop time for the scan                                [2000s]"<<std::endl;
   std::cout<<"-w (or --twindow)         window length to do the scan                          [10 s]"<<std::endl;
@@ -176,31 +223,7 @@ void Usage()
 
 #ifndef __CINT__
 int main(int argc, char** argv){
-  /*
-  int run = atoi(argv[1]);
-  int ch = atoi(argv[2]);
-  int tstart = atoi(argv[3]);
-  int tend = atoi(argv[4]);
-  double twindow = atof(argv[5]);
-	double MinRate = atof(argv[7]);
-	double thstep_set = atof(argv[8]);
-	std::cout<<"Min Rate = "<<MinRate<<std::endl;
-  TString output = Form("%s/run%d", argv[6],run);
-  //check if there is the trigparams file
-  //if not, the trig parames will be read from the DB
-  bool InputTrigFile = false; 
-	if(argc==10)	InputTrigFile = true;
-
-  if(argc<9 ){
-    std::cout<< "Scan trigger parameters for a specific channel" << std::endl;
-    std::cout<< "Run as "<< argv[0] << " <run> <ch> <tstart> <tend> <twindow> <output_path> <min rate> <th step> <triggerparamsfile>" << std::endl;
-    std::cout<<std::endl;
-    std::cout<< "The triggerparamsfile assumes this format for each line, without header: "<<std::endl;
-    std::cout<< "ch average threshold debounce"<<std::endl;
-    std::cout<<std::endl;
-    return 1;
-  }
-*/
+ 
   if(argc<2 ){
     std::cout<< "No arguments provided!!!" << std::endl;
     Usage();
@@ -227,18 +250,18 @@ int main(int argc, char** argv){
   // Parse the options                                                                                                                                                                                                                                                                                                                              
   
   static struct option long_options[] = {
-                                        { "run",        required_argument, 0, 'r' },
-                                        { "channel",required_argument,0,'c'},
-                                        { "tstart",optional_argument,0,'t'},
-                                        { "tstop",optional_argument,0,'T'},
-                                        { "twindow",optional_argument,0,'w'},
-                                        { "outpath",required_argument,0,'o'},
-                                        { "minrate", optional_argument, 0, 'm' },
-                                        { "step",optional_argument,0,'s'},
-                                        { "minthreshold",optional_argument,0,'I'},
-                                        { "maxthreshold",optional_argument,0,'A'},
-                                        { "trigparamsfile",optional_argument,0,'f'},
-                                        { "help",no_argument, 0, 'h' },
+                                        { "run",            required_argument,  0,  'r'},
+                                        { "channel",        required_argument,  0,  'c'},
+                                        { "tstart",         optional_argument,  0,  't'},
+                                        { "tstop",          optional_argument,  0,  'T'},
+                                        { "twindow",        optional_argument,  0,  'w'},
+                                        { "outpath",        required_argument,  0,  'o'},
+                                        { "minrate",        optional_argument,  0,  'm'},
+                                        { "step",           optional_argument,  0,  's'},
+                                        { "minthreshold",   optional_argument,  0,  'I'},
+                                        { "maxthreshold",   optional_argument,  0,  'A'},
+                                        { "trigparamsfile", optional_argument,  0,  'f'},
+                                        { "help",           no_argument,        0,  'h'},
                                         {0, 0, 0, 0}
   };
   const char* const short_options = "r:c:t::T::w::o:m::s::I::A::f::h";
@@ -314,20 +337,14 @@ int main(int argc, char** argv){
     
 
 
+  // moving a the ch number to a vector 
+  //TODO: remove this, it is not usefull
+	std::vector<int> auxchannels;
+  auxchannels.push_back(ch);
+
   
-	
-
-
-    /********************************THESE MAY NEED TO BE RE-DEFINED********************************/
-	// std::vector<int> auxchannels = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24};
-	std::vector<int> auxchannels = {62,64,74,76,78,84};
 	/********************************************************************************************************************/
-    
-	double adc2mV = 8.0108642578125e-02/64.0;
-  double fSampleFreq = 2000;//berettam: putting a fixed value, should change according to channel FIXME
-	
-	//READING the DAQ parameters form DBi
-	
+  //READING the DAQ parameters form DB	
 	std::cout<<"Getting DAQ parameters from the DB"<<std::endl;
 	QGlobalDataManager dmdaq;
 	//std::map<int,double> adc2mV_byCH;
@@ -336,12 +353,14 @@ int main(int argc, char** argv){
 	handle.SetRun(run);
 	dmdaq.Get(&handle,"DB");
 	QDetChannel detChannel = handle.Get();
-	adc2mV = 1000.*( detChannel.fDaqSet.fVAdcLimitMax - detChannel.fDaqSet.fVAdcLimitMin ) / pow(2,(double)( detChannel.fDig.fDaqNBits ));
-	fSampleFreq = (double) detChannel.fDaqSet.fSamplingFrequency; 
-	
+	double adc2mV = 1000.*( detChannel.fDaqSet.fVAdcLimitMax - detChannel.fDaqSet.fVAdcLimitMin ) / pow(2,(double)( detChannel.fDig.fDaqNBits ));
+	double fSampleFreq = (double) detChannel.fDaqSet.fSamplingFrequency; 
+	if(run<500936) fSampleFreq/=2;
 	std::cout<<"SF = "<<fSampleFreq<<" -- adc2mV = "<< adc2mV<<std::endl;
-
-	//declaring the reading structure
+  /********************************************************************************************************************/
+	
+  
+  //declaring the reading structure
   QRdcfRootFileReaderHandler& handler  = QRdcfRootFileReaderHandler::GetInstance();
   QError err = QERR_SUCCESS;
 	//map to keep the readers
@@ -353,10 +372,10 @@ int main(int argc, char** argv){
 		return 231192;
 	}
 
-    //Create the QVector(C) instances we will need
-    QVector ts(0);
+  //Create the QVector instances we will need
+  QVector ts(0);
 
-    //Get the trigger thresholds for this channel-runs from the database
+  //Get the trigger thresholds for this channel-runs from the database
 	std::map< int,double > threshmVCH;
 	std::map< int,double > averageCH;
 	std::map< int,double > debounceCH;
@@ -416,16 +435,16 @@ int main(int argc, char** argv){
 
 
 	// take the number of points to predeclare the vector
-    int N = twindow*fSampleFreq; 
+  int N = twindow*fSampleFreq; 
 
 
-    //finally, some counters we need
-    double t0 = tstart;
+  //finally, some counters we need
+  double t0 = tstart;
     
 
 	//loop over the noise events
 	//for the channel of interest
-	//saving the ok windows w and their t0 in a map
+	//saving the windows w and their t0 in a map
 	std::cout<<"Looping over time for ch "<<ch<<std::endl;
 	std::cout<<"twindow = "<<twindow<<std::endl;
 	std::map< double, QVector> VecTCH;
@@ -433,7 +452,7 @@ int main(int argc, char** argv){
         //std::cout << "Reached time " << t0 << " s" << std::endl;
 
         //Get timestream from the channel of interest
-        GetTimestream(readersCH[ch], ch,t0,t0+twindow, ts);
+        GetTimestream(readersCH[ch], ch,t0,t0+twindow, ts, run);
 		
 		if((int) ts.Size() != N){
             std::cout << "Size did not match at t0 = " << t0 << std::endl;
@@ -446,7 +465,7 @@ int main(int argc, char** argv){
 		t0+= twindow;
 	}
 
-    std::cout <<std::endl<< "Getting " << VecTCH.size() <<" windows " << std::endl;
+  std::cout <<std::endl<< "Getting " << VecTCH.size() <<" windows " << std::endl;
 	std::cout<<"-->Done Reading"<<std::endl<<std::endl;
 
 	//now doing the trigger analisys
@@ -502,7 +521,7 @@ int main(int argc, char** argv){
 	//define the output file	
 	TFile* newFile = new TFile(Form("%s/ScanTHs_run%d_CH%d.root",output.Data(),run,ch),"RECREATE");
 	TGraph *gWave = new TGraph(thresholds.size());
-    TCanvas *can_ts = new TCanvas(Form("RatevsThreshold_run%d_CH%d",run,ch), Form("RateVsThreshold_run%d_CH%d",run,ch), 1000, 750);
+  TCanvas *can_ts = new TCanvas(Form("RatevsThreshold_run%d_CH%d",run,ch), Form("RateVsThreshold_run%d_CH%d",run,ch), 1000, 750);
 	
 	std::ofstream newFileTXT(Form("%s/ScanTHs_run%d_CH%d.txt",output.Data(),run,ch));
   
@@ -514,11 +533,11 @@ int main(int argc, char** argv){
 		newFileTXT <<  thresholds[kk]<<","<<rates[kk]<<std::endl;
 	}
 	newFileTXT.close();
-    gWave->SetTitle(Form("Th Scan for CH %d; threshold; Rate [Hz] ",ch));
-    gWave->SetLineColor(kBlack);
-    gWave->SetLineWidth(2);
-    gWave->SetMarkerStyle(20);
-    gWave->Draw("AP");
+  gWave->SetTitle(Form("Th Scan for CH %d; threshold; Rate [Hz] ",ch));
+  gWave->SetLineColor(kBlack);
+  gWave->SetLineWidth(2);
+  gWave->SetMarkerStyle(20);
+  gWave->Draw("AP");
 
 	//Drawing a line with the chosen threshold from SB
 	TLine line (threshmVCH[ch],MinRate,threshmVCH[ch],*max_element(std::begin(rates), std::end(rates)));
@@ -527,12 +546,12 @@ int main(int argc, char** argv){
 	line.Draw("SAME");
 
 
-    gPad->SetGridx();
-    gPad->SetGridy();
-    can_ts->Update();
-    can_ts->Write("can_ts");
+  gPad->SetGridx();
+  gPad->SetGridy();
+  can_ts->Update();
+  can_ts->Write("can_ts");
 	newFile->Close();
-    std::cout << "Parameters saved" << std::endl;
+  std::cout << "Parameters saved" << std::endl;
   return 0;
 }
 #endif
