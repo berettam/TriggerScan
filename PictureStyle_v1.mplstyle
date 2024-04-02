@@ -1,0 +1,19 @@
+figure.dpi : 200
+axes.linewidth : 0.75 
+xtick.major.width : 0.75
+ytick.major.width : 0.75
+axes.labelsize : 10
+xtick.direction : in
+ytick.direction : in
+xtick.labelsize : 12
+ytick.labelsize : 12
+legend.fontsize : 10
+pdf.fonttype : 42
+figure.figsize : 6 , 4.5
+savefig.dpi : 600
+font.size : 10
+axes.grid : True
+axes.grid.which : both
+text.latex.preamble : r"\usepackage{bm} \usepackage{amsmath}"
+figure.autolayout : True
+grid.alpha : 0.5
