@@ -101,29 +101,12 @@ void GetSamples(const QRdcfRootFileReader* reader, const int ch, const Long64_t 
     return;
 }
 
-void GetTimestream(const QRdcfRootFileReader* reader, const int &ch, const double &tstart, const double &tend, QVector& wave,int run){
-     Long64_t startns = (Long64_t) (std::round(tstart*1.0e9));
+void GetTimestream(const QRdcfRootFileReader* reader, const int &ch, const double &tstart, const double &tend, QVector& wave,int run,int DownsamplingFactor){
+  Long64_t startns = (Long64_t) (std::round(tstart*1.0e9));
   Long64_t endns = (Long64_t) (std::round(tend*1.0e9));
 
 	QVector temp;
   GetSamples(reader, ch, startns, endns, temp);
-
-	//Downsampling to 2kHz
-	
-	// if(ch>30){
-	// // 	//downsampling
-  // wave.Resize(uint(temp.Size()/2));
-  // wave.Initialize(0);
-  // for(size_t i=0;i<temp.Size();i+=2){
-  //   wave[uint(i/2)] = temp[i]/GainByChannel[ch];
-  // }
-		
-	// }
-	// else{
-	// 	//if lmo, do nothing
-	// 	wave = temp;
-	// }
-	
 
   //removing slope
   double fBaselineIntercept,fBaselineSlope;
@@ -139,20 +122,12 @@ void GetTimestream(const QRdcfRootFileReader* reader, const int &ch, const doubl
           &fBaselineIntercept, &fBaselineSlope, &cov00, &cov01, &cov11, &fBaselineRMS);
   
   
-  if(run<500936){
-    wave.Resize(int(npoints/2));
-    wave.Initialize(0);
-    for(size_t i = 0; i < npoints; i+=2){
-      wave[uint(i/2)] = (temp[i]-TimeArray[i]*fBaselineSlope-fBaselineIntercept);///GainByChannel[ch];
-    }
+  wave.Resize(int(npoints/DownsamplingFactor));
+  wave.Initialize(0);
+  for(size_t i = 0; i < npoints; i+=DownsamplingFactor){
+    wave[uint(i/DownsamplingFactor)] = (temp[i]-TimeArray[i]*fBaselineSlope-fBaselineIntercept);///GainByChannel[ch];
   }
-  else{
-    wave.Resize(npoints);
-    wave.Initialize(0);
-    for(size_t i = 0; i < npoints; i++){
-      wave[i] = (temp[i]-TimeArray[i]*fBaselineSlope-fBaselineIntercept);///GainByChannel[ch];
-    }
-  }
+  
 
 }
 
@@ -354,8 +329,12 @@ int main(int argc, char** argv){
 	dmdaq.Get(&handle,"DB");
 	QDetChannel detChannel = handle.Get();
 	double adc2mV = 1000.*( detChannel.fDaqSet.fVAdcLimitMax - detChannel.fDaqSet.fVAdcLimitMin ) / pow(2,(double)( detChannel.fDig.fDaqNBits ));
-	double fSampleFreq = (double) detChannel.fDaqSet.fSamplingFrequency; 
-	if(run<500936) fSampleFreq/=2;
+	double fSampleFreq_DB = (double) detChannel.fDaqSet.fSamplingFrequency; 
+  //TargetFreq
+  double fSampleFreq = 1000; 
+
+	int DownsamplingFactor = int(fSampleFreq_DB/fSampleFreq);
+
 	std::cout<<"SF = "<<fSampleFreq<<" -- adc2mV = "<< adc2mV<<std::endl;
   /********************************************************************************************************************/
 	
@@ -452,7 +431,7 @@ int main(int argc, char** argv){
         //std::cout << "Reached time " << t0 << " s" << std::endl;
 
         //Get timestream from the channel of interest
-        GetTimestream(readersCH[ch], ch,t0,t0+twindow, ts, run);
+        GetTimestream(readersCH[ch], ch,t0,t0+twindow, ts, run,DownsamplingFactor);
 		
 		if((int) ts.Size() != N){
             std::cout << "Size did not match at t0 = " << t0 << std::endl;
