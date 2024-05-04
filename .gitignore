@@ -3,3 +3,4 @@ LaunchLongScanOnQueues.pbs
 TrigScan
 testmap.sh
 *.pdf
+*.txt
