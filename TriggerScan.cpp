@@ -222,8 +222,7 @@ int main(int argc, char** argv){
   std::string trigfile = "";
 
   
-  // Parse the options                                                                                                                                                                                                                                                                                                                              
-  
+  // Parse the options
   static struct option long_options[] = {
                                         { "run",            required_argument,  0,  'r'},
                                         { "channel",        required_argument,  0,  'c'},
