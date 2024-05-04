@@ -201,6 +201,6 @@ do
 		do
 			echo "--> CH " ${chArray[$i]} 
 			echo
-			/data/users/berettam/DianaHallC/TriggerScan/TrigScan -r $f -c ${chArray[$i]} -t${tmin} -T${tmax} -w${winlength} -o ${Path_output} -m${minrate} -s${thstep} -f${trigparfile} -I0.01 -A10
+			$PWD/TrigScan -r $f -c ${chArray[$i]} -t${tmin} -T${tmax} -w${winlength} -o ${Path_output} -m${minrate} -s${thstep} -f${trigparfile} -I0.01 -A10
 	done
 done
