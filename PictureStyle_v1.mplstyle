@@ -1,4 +1,6 @@
-figure.dpi : 200
+figure.dpi : 600
+patch.facecolor : white
+figure.facecolor : white
 axes.linewidth : 0.75 
 xtick.major.width : 0.75
 ytick.major.width : 0.75
