@@ -66,7 +66,10 @@ while getopts "hr:R:p:c:e:w:s:t:T:f:" option; do
 		e) #minumum rate
 			minrate=${OPTARG};;
 		w) #window length
-			winlength=${OPTARG};;
+      echo QUAAAAH
+      echo ${OPTARG}
+			winlength=${OPTARG}
+      echo ${winlength};;
 		s) #th step
 			thstep=${OPTARG};;
 		t) #min time
@@ -114,7 +117,7 @@ if [ -z "${minrate}" ] ; then
 		echo
 fi
 
-if [ -z "${winlenght}" ] ; then
+if [ -z "${winlength}" ] ; then
 		echo
         winlength=10;
 		echo 'Default window lengh: '${winlength}
@@ -201,6 +204,6 @@ do
 		do
 			echo "--> CH " ${chArray[$i]} 
 			echo
-			$PWD/TrigScan -r $f -c ${chArray[$i]} -t${tmin} -T${tmax} -w${winlength} -o ${Path_output} -m${minrate} -s${thstep} -f${trigparfile} -I0.01 -A10
+			$PWD/TrigScan -r $f -c ${chArray[$i]} -t${tmin} -T${tmax} -w${winlength} -o ${Path_output} -m${minrate} -s${thstep} -f${trigparfile} -I0.01 -A100
 	done
 done
